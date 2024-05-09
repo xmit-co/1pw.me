@@ -1,0 +1,32 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  color-scheme: dark light;
+  font-family: sans-serif;
+}
+
+h1 {
+  margin: 0;
+  padding: 0;
+  text-align: center;
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  min-height: 100vh;
+}
+
+.editor .error {
+  color: #f00;
+}
+
+.editor textarea {
+  flex-grow: 1;
+  resize: none;
+}
