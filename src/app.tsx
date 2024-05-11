@@ -2,16 +2,16 @@ import { useEffect, useMemo, useState } from "preact/hooks";
 import nacl from "tweetnacl";
 import { Encoder } from "cbor-x";
 
-const EXPLANATION = `This is a simple editor that encrypts your content with a passphrase.\nIf you lose the passphrase, the content is lost forever.`;
+const explanation = `This is a simple editor that stores its content in 0pw.me, encrypted end-to-end.\nIf you lose the passphrase, the content is lost forever.`;
 
 const subtle = window.crypto.subtle;
 
-const CBOROptions = {
-  useRecords: false,
-  mapsAsObjects: false,
-};
+const encoder = new Encoder();
 
-const encoder = new Encoder(CBOROptions);
+const backend =
+  window.location.host == "1pw.me"
+    ? "https://0pw.me"
+    : `https://${window.location.host}/test`;
 
 export function App() {
   const [error, setError] = useState<string | null>(null);
@@ -76,12 +76,16 @@ export function App() {
               const signKP = nacl.sign.keyPair.fromSeed(seed);
               const boxKP = nacl.box.keyPair.fromSecretKey(seed);
               const postBytes = encoder.encode([signKP.publicKey]);
-              const result = await fetch("https://0pw.me", {
+              const result = await fetch(backend, {
                 method: "POST",
                 body: postBytes,
               });
               if (!result.ok) {
-                setError(`${result.status} ${result.statusText}`);
+                if (result.status === 404) {
+                  setError("No such page");
+                  return;
+                }
+                setError(`Request failed (${result.status})`);
                 return;
               }
               const signed = await result.arrayBuffer();
@@ -126,7 +130,7 @@ export function App() {
               const payload = encoder.encode([nonce, box]);
               const signed = nacl.sign(payload, signKP.secretKey);
               const postBytes = encoder.encode([signKP.publicKey, signed]);
-              const result = await fetch("https://0pw.me", {
+              const result = await fetch(backend, {
                 method: "POST",
                 body: postBytes,
               });
@@ -148,7 +152,7 @@ export function App() {
       </div>
       <textarea
         value={content || ""}
-        placeholder={EXPLANATION}
+        placeholder={explanation}
         onInput={(e) => setContent((e.target as HTMLTextAreaElement).value)}
       ></textarea>
       <div class={(lengthError && "error") || undefined}>{length} / 64000</div>
