@@ -2,23 +2,18 @@ import { useEffect, useMemo, useState } from "preact/hooks";
 import nacl from "tweetnacl";
 import { Encoder } from "cbor-x";
 
-const explanation = `This is a simple editor that stores its content in 0pw.me, encrypted end-to-end.\nIf you lose the password, the content is lost forever.`;
+const explanation = `This editor stores its content encrypted end-to-end.\nIf you lose the password, the content is lost forever.`;
 
 const subtle = window.crypto.subtle;
 
 const encoder = new Encoder();
 
-const backend =
-  window.location.host == "1pw.me"
-    ? "https://0pw.me"
-    : `https://${window.location.host}/test`;
-
 export function App() {
+  const [working, setWorking] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [pw, setPw] = useState<string | null>(null);
-  const [content, setContent] = useState<string | null>(null);
-  const [working, setWorking] = useState<boolean>(false);
   const [seed, setSeed] = useState<Uint8Array | null>(null);
+  const [content, setContent] = useState<string | null>(null);
 
   const message = useMemo(
     () => new TextEncoder().encode(content || ""),
@@ -76,7 +71,7 @@ export function App() {
               const signKP = nacl.sign.keyPair.fromSeed(seed);
               const boxKP = nacl.box.keyPair.fromSecretKey(seed);
               const postBytes = encoder.encode([signKP.publicKey]);
-              const result = await fetch(backend, {
+              const result = await fetch("https://0pw.me", {
                 method: "POST",
                 body: postBytes,
               });
@@ -130,7 +125,7 @@ export function App() {
               const payload = encoder.encode([nonce, box]);
               const signed = nacl.sign(payload, signKP.secretKey);
               const postBytes = encoder.encode([signKP.publicKey, signed]);
-              const result = await fetch(backend, {
+              const result = await fetch("https://0pw.me", {
                 method: "POST",
                 body: postBytes,
               });
@@ -155,7 +150,21 @@ export function App() {
         placeholder={explanation}
         onInput={(e) => setContent((e.target as HTMLTextAreaElement).value)}
       ></textarea>
-      <div class={(lengthError && "error") || undefined}>{length} / 64000</div>
+      <footer>
+        <div class={(lengthError && "error") || undefined}>
+          {length} / 64000
+        </div>
+        <div>
+          powered by{" "}
+          <a href="https://0pw.me" target="_blank">
+            0pw.me
+          </a>
+          , a service by{" "}
+          <a href="https://xmit.dev" target="_blank">
+            xmit
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }
