@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "preact/hooks";
 import nacl from "tweetnacl";
 import { Encoder } from "cbor-x";
 
-const explanation = `This is a simple editor that stores its content in 0pw.me, encrypted end-to-end.\nIf you lose the passphrase, the content is lost forever.`;
+const explanation = `This is a simple editor that stores its content in 0pw.me, encrypted end-to-end.\nIf you lose the password, the content is lost forever.`;
 
 const subtle = window.crypto.subtle;
 
@@ -15,7 +15,7 @@ const backend =
 
 export function App() {
   const [error, setError] = useState<string | null>(null);
-  const [passphrase, setPassphrase] = useState<string | null>(null);
+  const [pw, setPw] = useState<string | null>(null);
   const [content, setContent] = useState<string | null>(null);
   const [working, setWorking] = useState<boolean>(false);
   const [seed, setSeed] = useState<Uint8Array | null>(null);
@@ -32,7 +32,7 @@ export function App() {
     (async () => {
       const key = await subtle.importKey(
         "raw",
-        new TextEncoder().encode(passphrase || ""),
+        new TextEncoder().encode(pw || ""),
         "PBKDF2",
         false,
         ["deriveBits"],
@@ -52,17 +52,17 @@ export function App() {
     })().catch((e) => {
       setError(e.message);
     });
-  }, [passphrase]);
+  }, [pw]);
 
   return (
     <div class="editor">
-      <h1>🔏 1pw.me — passphrase → page</h1>
+      <h1>🔏 1pw.me — password → page</h1>
       <div>
         <input
           type="password"
-          placeholder="Passphrase"
-          value={passphrase || ""}
-          onInput={(e) => setPassphrase((e.target as HTMLInputElement).value)}
+          placeholder="Password"
+          value={pw || ""}
+          onInput={(e) => setPw((e.target as HTMLInputElement).value)}
         />
         <button
           disabled={working}
@@ -70,7 +70,7 @@ export function App() {
             setWorking(true);
             (async () => {
               if (seed === null) {
-                setError("No passphrase");
+                setError("No password");
                 return;
               }
               const signKP = nacl.sign.keyPair.fromSeed(seed);
@@ -120,7 +120,7 @@ export function App() {
             setWorking(true);
             (async () => {
               if (seed === null) {
-                setError("No passphrase");
+                setError("No password");
                 return;
               }
               const signKP = nacl.sign.keyPair.fromSeed(seed);
