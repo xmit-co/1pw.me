@@ -163,6 +163,13 @@ export function App() {
           <a href="https://xmit.dev" target="_blank">
             xmit
           </a>
+          ;{" "}
+          <a
+            href="https://github.com/xmit-co/1pw.me/blob/main/src/app.tsx"
+            target="_blank"
+          >
+            open source
+          </a>
         </div>
       </footer>
     </div>
