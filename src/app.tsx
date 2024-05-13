@@ -3,7 +3,7 @@ import nacl from "tweetnacl";
 import { Encoder } from "cbor-x";
 
 const explanation = `This editor stores its content encrypted end-to-end.\nIf you lose the password, the content is lost forever.`;
-
+const maxLength = 65000;
 const subtle = window.crypto.subtle;
 
 const encoder = new Encoder();
@@ -20,7 +20,7 @@ export function App() {
     [content],
   );
   const length = message.length;
-  const lengthError = length > 64000;
+  const lengthError = length > maxLength;
 
   useEffect(() => {
     setWorking(true);
@@ -152,7 +152,7 @@ export function App() {
       ></textarea>
       <footer>
         <div class={(lengthError && "error") || undefined}>
-          {length} / 64000
+          {length} / {maxLength}
         </div>
         <div>
           powered by{" "}
