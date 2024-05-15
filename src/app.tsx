@@ -143,6 +143,36 @@ export function App() {
         >
           Save
         </button>
+        <button
+          disabled={working}
+          onClick={() => {
+            setWorking(true);
+            (async () => {
+              if (seed === null) {
+                setError("No password");
+                return;
+              }
+              const signKP = nacl.sign.keyPair.fromSeed(seed);
+              const signed = nacl.sign(new Uint8Array(), signKP.secretKey);
+              const deleteBytes = encoder.encode([signKP.publicKey, signed]);
+              const result = await fetch("https://0pw.me", {
+                method: "DELETE",
+                body: deleteBytes,
+              });
+              if (!result.ok) {
+                setError(`${result.status} ${result.statusText}`);
+              } else {
+                setError(null);
+              }
+            })()
+              .catch((e) => setError(e.message))
+              .finally(() => {
+                setWorking(false);
+              });
+          }}
+        >
+          Delete
+        </button>
         {error && <span class="error">{error}</span>}
       </div>
       <textarea
