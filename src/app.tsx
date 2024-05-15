@@ -8,11 +8,11 @@ const maxLength = 65000;
 const encoder = new Encoder();
 
 export function App() {
-  const [working, setWorking] = useState<boolean>(false);
+  const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pw, setPw] = useState<string | null>(null);
+  const [pw, setPw] = useState("");
   const [seed, setSeed] = useState<Uint8Array | null>(null);
-  const [content, setContent] = useState<string | null>(null);
+  const [content, setContent] = useState("");
 
   const message = useMemo(
     () => new TextEncoder().encode(content || ""),
