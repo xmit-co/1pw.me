@@ -112,6 +112,7 @@ export function App() {
               });
               if (!result.ok) {
                 if (result.status === 404) {
+                  setContent("");
                   setError("No such page");
                   return;
                 }
