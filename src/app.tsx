@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState } from "preact/hooks";
 import nacl from "tweetnacl";
 import { Encoder } from "cbor-x";
 
+const subtle = window.crypto.subtle;
 const explanation = `This editor stores its content encrypted end-to-end.\nIf you lose the password, the content is lost forever.`;
 const maxLength = 65000;
-const subtle = window.crypto.subtle;
-
 const encoder = new Encoder();
 
 export function App() {
@@ -24,6 +23,7 @@ export function App() {
 
   useEffect(() => {
     setWorking(true);
+    setError(null);
     (async () => {
       const key = await subtle.importKey(
         "raw",
@@ -49,6 +49,40 @@ export function App() {
     });
   }, [pw]);
 
+  function post(msg: Uint8Array | null) {
+    setWorking(true);
+    setError(null);
+    (async () => {
+      if (seed === null) {
+        setError("No password");
+        return;
+      }
+
+      const kp = nacl.sign.keyPair.fromSeed(seed);
+      const body = encoder.encode([
+        kp.publicKey,
+        nacl.sign(
+          encoder.encode([new Date().getTime() / 1000, msg]),
+          kp.secretKey,
+        ),
+      ]);
+      const result = await fetch("https://0pw.me", {
+        method: "POST",
+        body,
+      });
+      if (!result.ok) {
+        setError(`${result.status} (${await result.text()})`);
+      }
+    })()
+      .catch((e) => {
+        setError(e.message);
+        console.error(e);
+      })
+      .finally(() => {
+        setWorking(false);
+      });
+  }
+
   return (
     <div class="editor">
       <h1>🔏 1pw.me — password → page</h1>
@@ -63,6 +97,7 @@ export function App() {
           disabled={working}
           onClick={() => {
             setWorking(true);
+            setError(null);
             (async () => {
               if (seed === null) {
                 setError("No password");
@@ -80,7 +115,7 @@ export function App() {
                   setError("No such page");
                   return;
                 }
-                setError(`Request failed (${result.status})`);
+                setError(`${result.status} (${await result.text()})`);
                 return;
               }
               const signed = await result.arrayBuffer();
@@ -92,16 +127,25 @@ export function App() {
                 setError("Signature verification failed");
                 return;
               }
-              const [nonce, box] = encoder.decode(new Uint8Array(payload));
-              const message = nacl.secretbox.open(box, nonce, boxKP.secretKey);
-              if (message === null) {
+              let [timestamp, message] = encoder.decode(
+                new Uint8Array(payload),
+              );
+              if (typeof timestamp !== "number") {
+                message = payload;
+                setError("Legacy format, please save to upgrade.");
+              }
+              const [nonce, box] = encoder.decode(new Uint8Array(message));
+              const opened = nacl.secretbox.open(box, nonce, boxKP.secretKey);
+              if (opened === null) {
                 setError("Decryption failed");
                 return;
               }
-              setContent(new TextDecoder().decode(message));
-              setError(null);
+              setContent(new TextDecoder().decode(opened));
             })()
-              .catch((e) => setError(e.message))
+              .catch((e) => {
+                setError(e.message);
+                console.error(e);
+              })
               .finally(() => {
                 setWorking(false);
               });
@@ -112,33 +156,21 @@ export function App() {
         <button
           disabled={working || lengthError}
           onClick={() => {
-            setWorking(true);
-            (async () => {
-              if (seed === null) {
-                setError("No password");
-                return;
-              }
-              const signKP = nacl.sign.keyPair.fromSeed(seed);
-              const boxKP = nacl.box.keyPair.fromSecretKey(seed);
-              const nonce = nacl.randomBytes(nacl.box.nonceLength);
-              const box = nacl.secretbox(message, nonce, boxKP.secretKey);
-              const payload = encoder.encode([nonce, box]);
-              const signed = nacl.sign(payload, signKP.secretKey);
-              const postBytes = encoder.encode([signKP.publicKey, signed]);
-              const result = await fetch("https://0pw.me", {
-                method: "POST",
-                body: postBytes,
-              });
-              if (!result.ok) {
-                setError(`${result.status} ${result.statusText}`);
-              } else {
-                setError(null);
-              }
-            })()
-              .catch((e) => setError(e.message))
-              .finally(() => {
-                setWorking(false);
-              });
+            if (seed === null) {
+              setError("No password");
+              return;
+            }
+            const nonce = nacl.randomBytes(nacl.box.nonceLength);
+            post(
+              encoder.encode([
+                nonce,
+                nacl.secretbox(
+                  message,
+                  nonce,
+                  nacl.box.keyPair.fromSecretKey(seed).secretKey,
+                ),
+              ]),
+            );
           }}
         >
           Save
@@ -146,33 +178,12 @@ export function App() {
         <button
           disabled={working}
           onClick={() => {
-            setWorking(true);
-            (async () => {
-              if (seed === null) {
-                setError("No password");
-                return;
-              }
-              const signKP = nacl.sign.keyPair.fromSeed(seed);
-              const signed = nacl.sign(new Uint8Array(), signKP.secretKey);
-              const deleteBytes = encoder.encode([signKP.publicKey, signed]);
-              const result = await fetch("https://0pw.me", {
-                method: "DELETE",
-                body: deleteBytes,
-              });
-              if (!result.ok) {
-                setError(`${result.status} ${result.statusText}`);
-              } else {
-                setError(null);
-              }
-            })()
-              .catch((e) => setError(e.message))
-              .finally(() => {
-                setWorking(false);
-              });
+            post(null);
+            setContent("");
           }}
         >
           Delete
-        </button>
+        </button>{" "}
         {error && <span class="error">{error}</span>}
       </div>
       <textarea
